@@ -30,6 +30,8 @@ class AddDraftColumns < ActiveRecord::Migration
   def self.up
     add_column :table_name, :draft_parent_id, :integer
     add_column :table_name, :is_draft, :boolean, default: false
+    add_index :table_name, :draft_parent_id
+    add_index :table_name, :is_draft
   end
 
   def self.down
