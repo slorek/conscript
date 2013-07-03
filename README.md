@@ -24,7 +24,21 @@ Or install it yourself as:
 
 ## Usage
 
-To use the drafts functionality, call the gem in your ActiveRecord model:
+All models which wish to register for the draft must add two columns to their database schema, as illustrated in this example migration:
+
+class AddDraftColumns < ActiveRecord::Migration
+  def self.up
+    add_column :table_name, :draft_parent_id, :integer
+    add_column :table_name, :is_draft, :boolean, default: false
+  end
+
+  def self.down
+    remove_column :table_name, :draft_parent_id
+    remove_column :table_name, :is_draft
+  end
+end
+
+To use the drafts functionality, call `register_for_draft` in your ActiveRecord model:
 
     class Article < ActiveRecord::Base
       register_for_draft
