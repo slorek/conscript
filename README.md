@@ -1,6 +1,6 @@
 # Conscript
 
-Provides ActiveRecord models with a drafts scope, and the functionality to create draft instances and publish them.
+Provides ActiveRecord models with a `drafts` scope, and the functionality to create draft instances and publish them.
 
 Existing instances may have one or more draft versions which are initially created by duplication, including any required associations. A draft may then be published, overwriting the original instance.
 
@@ -30,9 +30,13 @@ To use the drafts functionality, call the gem in your ActiveRecord model:
       register_for_draft
     end
 
-A default_scope is also set to exclude all draft instances from finders. You may use the drafts scope to access them:
+A `default_scope` is also set to exclude all draft instances from finders. You may use the `drafts` scope to access them:
 
     Article.drafts
+
+If you need to access drafts and original instances together, use `unscoped` as you would any other `default_scope`:
+
+    Article.unscoped.all
 
 ### Instance methods
 
@@ -77,13 +81,13 @@ Options may be passed to the `register_for_draft` method, e.g:
 
 A list of options are below:
 
-- `:associations` an array of association names to duplicate. The will be copied to the draft and overwrite the original instance's when published. Deep cloning is possible thanks to the `deep_cloneable` gem.
-- `:ignore_attributes` an array of attribute names which should not be duplicated. Timestamps and STI `type` columns are excluded by default.
+- `:associations` an array of association names to duplicate. The will be copied to the draft and overwrite the original instance's when published. Deep cloning is possible thanks to the [`deep_cloneable`](https://github.com/moiristo/deep_cloneable) gem. Refer to the `deep_cloneable` documentation to get an idea of how far you can go with this.
+- `:ignore_attributes` an array of attribute names which should _not_ be duplicated. Timestamps and STI `type` columns are excluded by default.
 
 
 ### Using with CarrierWave
 
-Conscript supports CarrierWave uploads, but there's a couple of things you should be aware of.
+Conscript supports [CarrierWave](https://github.com/carrierwaveuploader/carrierwave) uploads, but there's a couple of things you should be aware of.
 
 First, you must ensure `register_for_draft` is called _after_ any calls to `mount_uploader`.
 
