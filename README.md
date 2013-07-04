@@ -59,11 +59,11 @@ If you need to access drafts and original instances together, use `unscoped` as 
 Draft instances may optionally be created from existing instances:
     
     article = Article.first
-    draft = article.save_as_draft
+    draft = article.save_as_draft!
 
 Or you can create drafts from scratch:
 
-    Article.new.save_as_draft
+    Article.new.save_as_draft!
 
 You can access the original instance from the draft:
 

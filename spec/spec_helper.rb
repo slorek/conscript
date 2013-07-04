@@ -1,7 +1,5 @@
 require 'conscript'
-require 'nulldb_rspec'
+Dir["./spec/support/**/*.rb"].each {|f| require f}
 
-ActiveRecord::Base.configurations['test'] = {adapter: :nulldb}
+ActiveRecord::Base.establish_connection adapter: "sqlite3", database: ":memory:"
 ActiveRecord::Migration.verbose = false
-
-include NullDB::RSpec::NullifiedDatabase
