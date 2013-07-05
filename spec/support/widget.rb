@@ -1,3 +1,3 @@
 class Widget < ActiveRecord::Base
-  has_many :thingies
+  has_many :thingies, dependent: :destroy
 end

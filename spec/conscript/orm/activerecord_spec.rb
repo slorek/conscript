@@ -36,6 +36,27 @@ describe Conscript::ActiveRecord do
       Widget.conscript_options[:associations].should == [:owners]
       Widget.conscript_options[:ignore_attributes].should == ["id", "type", "created_at", "updated_at", "draft_parent_id", "is_draft", "custom_attribute"]
     end
+
+    describe "CarrierWave compatibility" do
+      context "where no uploaders are defined on the class" do
+        it "does not try to skip callbacks" do
+          Widget.should_not_receive :skip_callback
+          Widget.register_for_draft
+        end
+      end
+
+      context "where uploaders are defined on the class" do
+        before do
+          Widget.cattr_accessor :uploaders
+          Widget.uploaders = {file: nil}
+        end
+
+        it "disables the provided remove_#attribute callback behaviour" do
+          Widget.should_receive(:skip_callback).with(:commit, :after, :remove_file!)
+          Widget.register_for_draft
+        end
+      end
+    end
   end
 
   describe "#drafts" do

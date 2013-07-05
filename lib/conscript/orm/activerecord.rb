@@ -25,6 +25,10 @@ module Conscript
 
       before_save :check_no_drafts_exist
 
+      # Prevent deleting CarrierWave uploads which may be used by other instances. Uploaders must be mounted beforehand.
+      self.uploaders.keys.each {|attribute| skip_callback :commit, :after, :"remove_#{attribute}!" } if self.respond_to? :uploaders
+
+
       class_eval <<-RUBY
         def self.drafts
           where(is_draft: true)
