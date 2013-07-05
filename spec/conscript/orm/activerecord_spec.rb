@@ -323,4 +323,32 @@ describe Conscript::ActiveRecord do
       end
     end
   end
+
+  describe "#uploader_store_param" do
+    before do
+      Widget.register_for_draft
+      @original = Widget.create
+      @duplicate = @original.save_as_draft!
+      @draft = Widget.new.save_as_draft!
+    end
+
+    context "where the instance is not a draft" do
+      it "returns #to_param" do
+        @original.uploader_store_param.should == @original.to_param
+      end
+    end
+
+    context "where the instance is a draft" do
+      context "and it has no draft_parent" do
+        it "returns #to_param" do
+          @draft.uploader_store_param.should == @draft.to_param
+        end
+      end
+      context "and it has a draft_parent" do
+        it "returns draft_parent#to_param" do
+          @duplicate.uploader_store_param.should == @original.to_param
+        end
+      end
+    end
+  end
 end

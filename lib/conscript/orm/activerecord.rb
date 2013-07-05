@@ -64,6 +64,10 @@ module Conscript
           draft_parent
         end
 
+        def uploader_store_param
+          draft_parent_id.nil? ? to_param : draft_parent.to_param
+        end
+
         private
           def check_no_drafts_exist
             drafts.count == 0
