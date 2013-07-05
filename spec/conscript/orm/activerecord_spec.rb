@@ -55,6 +55,11 @@ describe Conscript::ActiveRecord do
           Widget.should_receive(:skip_callback).with(:commit, :after, :remove_file!)
           Widget.register_for_draft
         end
+
+        it "registers a callback to #clean_uploaded_files_for_draft" do
+          Widget.should_receive(:after_commit).with(:clean_uploaded_files_for_draft!, :on => :destroy)
+          Widget.register_for_draft
+        end
       end
     end
   end
@@ -89,6 +94,43 @@ describe Conscript::ActiveRecord do
       
       it "returns false" do
         @subject.send(:check_no_drafts_exist).should == false
+      end
+    end
+  end
+
+  describe "#clean_uploaded_files_for_draft!" do
+    before do
+      Widget.cattr_accessor :uploaders
+      Widget.uploaders = {file: nil}
+      Widget.register_for_draft
+    end
+
+    context "where files are not shared with any other instances" do
+      before do
+        @original = Widget.create(file: 'test.jpg')
+        @duplicate = @original.save_as_draft!
+        @duplicate.file = 'another_file.jpg'
+        @duplicate.save
+        @original.reload
+      end
+
+      it "should not attempt to remove the file" do
+        @duplicate.should_receive(:remove_file!)
+        @duplicate.destroy
+      end
+    end
+
+    context "where files are shared with other instances" do
+      before do
+        @original = Widget.create(file: 'test.jpg')
+        @duplicate = @original.save_as_draft!
+        @duplicate.file.should == 'test.jpg'
+        @original.reload
+      end
+
+      it "should not attempt to remove the file" do
+        @duplicate.should_not_receive(:remove_file!)
+        @duplicate.destroy
       end
     end
   end
@@ -229,6 +271,10 @@ describe Conscript::ActiveRecord do
         end
 
         it "destroys the parent's other drafts" do
+          3.times { @original.save_as_draft! }
+          @original.drafts.count.should == 4
+          @duplicate.publish_draft
+          @original.drafts.count.should == 0
         end
 
         context "where attributes were excluded in register_for_draft" do
@@ -243,7 +289,6 @@ describe Conscript::ActiveRecord do
         end
 
         describe "copying associations" do
-          
           def setup
             @original.thingies.count.should == 0
             @associated = Thingy.create(name: 'Thingy')

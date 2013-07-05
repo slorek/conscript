@@ -4,6 +4,7 @@ class WidgetMigration < ActiveRecord::Migration
       t.references :draft_parent
       t.boolean "is_draft", :default => false
       t.string :name
+      t.string :file
       t.timestamps
     end
 

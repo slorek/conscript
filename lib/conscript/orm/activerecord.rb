@@ -26,8 +26,10 @@ module Conscript
       before_save :check_no_drafts_exist
 
       # Prevent deleting CarrierWave uploads which may be used by other instances. Uploaders must be mounted beforehand.
-      self.uploaders.keys.each {|attribute| skip_callback :commit, :after, :"remove_#{attribute}!" } if self.respond_to? :uploaders
-
+      if self.respond_to? :uploaders
+        self.uploaders.keys.each {|attribute| skip_callback :commit, :after, :"remove_#{attribute}!" }
+        after_commit :clean_uploaded_files_for_draft!, :on => :destroy
+      end
 
       class_eval <<-RUBY
         def self.drafts
@@ -56,7 +58,7 @@ module Conscript
               end
             end
 
-            self.destroy
+            draft_parent.drafts.destroy_all
             draft_parent.save!
           end
           draft_parent
@@ -69,6 +71,15 @@ module Conscript
 
           def attributes_to_publish
             attributes.reject {|attribute| self.class.conscript_options[:ignore_attributes].include?(attribute) }
+          end
+
+          # Clean up CarrierWave uploads if there are no other instances using the files.
+          #
+          def clean_uploaded_files_for_draft!
+            self.class.uploaders.keys.each do |attribute|
+              filename = attributes[attribute.to_s]
+              self.send("remove_" + attribute.to_s + "!") if !draft_parent_id or draft_parent.drafts.where(attribute => filename).count == 0
+            end
           end
       RUBY
     end
