@@ -30,10 +30,17 @@ describe Conscript::ActiveRecord do
       Widget.should_receive(:before_save).once.with(:check_no_drafts_exist)
       Widget.register_for_draft
     end
+
+    it "accepts options and merges them with defaults" do
+      Widget.register_for_draft(associations: :owners, ignore_attributes: :custom_attribute)
+      Widget.conscript_options[:associations].should == [:owners]
+      Widget.conscript_options[:ignore_attributes].should == ["id", "type", "created_at", "updated_at", "draft_parent_id", "is_draft", "custom_attribute"]
+    end
   end
 
   describe "#drafts" do
     it "limits results to drafts" do
+      Widget.register_for_draft
       Widget.should_receive(:where).once.with(is_draft: true)
       Widget.drafts
     end
@@ -41,6 +48,7 @@ describe Conscript::ActiveRecord do
 
   describe "#check_no_drafts_exist" do
     before do
+      Widget.register_for_draft
       @subject = Widget.new
     end
 
@@ -65,9 +73,11 @@ describe Conscript::ActiveRecord do
   end
 
   describe "#save_as_draft!" do
+    before { Widget.register_for_draft }
+
     context "where the instance is a draft" do
       it "raises an exception" do
-        lambda { Widget.new(is_draft: true).save_as_draft! }.should raise_error Conscript::Exception::AlreadyDraft
+        -> { Widget.new(is_draft: true).save_as_draft! }.should raise_error Conscript::Exception::AlreadyDraft
       end
     end
 
@@ -109,6 +119,140 @@ describe Conscript::ActiveRecord do
 
         it "returns the duplicate instance" do
           @subject.save_as_draft!.should == @duplicate
+        end
+      end
+
+      context "and has associations" do
+        before do
+          @associated = Thingy.create(name: 'Thingy')
+          @subject.thingies << @associated
+          @subject.save
+        end
+
+        context "and the association is not specified in register_for_draft" do
+          before do
+            @duplicate = @subject.save_as_draft!
+          end
+
+          it "does not duplicate the associated records" do
+            @duplicate.thingies.count.should == 0
+          end
+        end
+
+        context "and the association is specified in register_for_draft" do
+          before do
+            Widget.register_for_draft associations: :thingies
+            @duplicate = @subject.save_as_draft!
+          end
+
+          it "duplicates the associated records" do
+            @subject.thingies.count.should == 1
+            @duplicate.thingies.count.should == 1
+            @duplicate.thingies.first.name.should == @subject.thingies.first.name
+            @duplicate.thingies.first.id.should_not == @subject.thingies.first.id
+          end
+        end
+      end
+    end
+  end
+
+  describe "#publish_draft" do
+    before { Widget.register_for_draft }
+
+    context "where the instance is not a draft" do
+      it "raises an exception" do
+        -> { Widget.new.publish_draft }.should raise_error Conscript::Exception::NotADraft
+      end
+    end
+
+    context "where the instance is a draft" do
+      context "and has no parent" do
+        before do
+          @subject = Widget.new.save_as_draft!
+        end
+
+        it "sets is_draft to false and saves" do
+          @subject.is_draft?.should == true
+          @subject.publish_draft
+          @subject.is_draft?.should == false
+        end
+      end
+
+      context "and has a parent instance" do
+        before do
+          @original = Widget.create(name: 'Old name')
+          @duplicate = @original.save_as_draft!
+        end
+
+        it "copies the attributes to the parent" do
+          @duplicate.name = 'New name'
+          @duplicate.publish_draft
+          @original.reload
+          @original.name.should == 'New name'
+        end
+
+        it "does not copy the ID, type, draft or timestamp attributes" do
+          @duplicate.name = 'New name'
+          @duplicate.publish_draft
+          @original.reload
+          @original.id.should_not == @duplicate.id
+          @original.created_at.should_not == @duplicate.created_at
+          @original.updated_at.should_not == @duplicate.updated_at
+          @original.is_draft.should_not == @duplicate.is_draft
+          @original.draft_parent_id.should_not == @duplicate.draft_parent_id
+        end
+
+        it "destroys the draft instance" do
+          @duplicate.publish_draft
+          -> { @duplicate.reload }.should raise_error(ActiveRecord::RecordNotFound)
+        end
+
+        it "destroys the parent's other drafts" do
+        end
+
+        context "where attributes were excluded in register_for_draft" do
+          before { Widget.register_for_draft ignore_attributes: :name }
+
+          it "does not copy the excluded attributes" do
+            @duplicate.name = 'New name'
+            @duplicate.publish_draft
+            @original.reload
+            @original.name.should == 'Old name'
+          end
+        end
+
+        describe "copying associations" do
+          
+          def setup
+            @original.thingies.count.should == 0
+            @associated = Thingy.create(name: 'Thingy')
+            @duplicate.thingies << @associated
+            @duplicate.save!
+            @duplicate.publish_draft
+            @original.reload
+          end
+
+          context "when associations were specified in register_for_draft" do
+            before do
+              Widget.register_for_draft associations: :thingies
+              setup
+            end
+
+            it "copies has_many associations to the parent" do
+              @original.thingies.count.should == 1
+            end
+          end
+
+          context "when no associations were specified in register_for_draft" do
+            before do
+              Widget.register_for_draft associations: nil
+              setup
+            end
+
+            it "does not copy associations to the parent" do
+              @original.thingies.count.should == 0
+            end
+          end
         end
       end
     end
