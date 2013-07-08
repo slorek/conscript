@@ -41,7 +41,7 @@ module Conscript
           draft = new_record? ? self : dup(include: self.class.conscript_options[:associations])
           draft.is_draft = true
           draft.draft_parent = self unless new_record?
-          draft.save!
+          self.class.base_class.unscoped { draft.save! }
           draft
         end
 

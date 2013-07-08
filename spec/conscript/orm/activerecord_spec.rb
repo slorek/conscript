@@ -187,13 +187,13 @@ describe Conscript::ActiveRecord do
 
       context "and has associations" do
         before do
-          @associated = Thingy.create(name: 'Thingy')
-          @subject.thingies << @associated
-          @subject.save
+          @subject.save!
+          @subject.thingies.create(name: 'Thingy')
         end
 
         context "and the association is not specified in register_for_draft" do
           before do
+            Widget.register_for_draft associations: nil
             @duplicate = @subject.save_as_draft!
           end
 
@@ -291,9 +291,8 @@ describe Conscript::ActiveRecord do
         describe "copying associations" do
           def setup
             @original.thingies.count.should == 0
-            @associated = Thingy.create(name: 'Thingy')
-            @duplicate.thingies << @associated
             @duplicate.save!
+            @duplicate.thingies.create(name: 'Thingy')
             @duplicate.publish_draft
             @original.reload
           end
