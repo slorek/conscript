@@ -95,6 +95,18 @@ A list of options are below:
 
 - `:associations` an array of `has_many` association names to duplicate. These will be copied to the draft and overwrite the original instance's when published. Deep cloning is possible thanks to the [`deep_cloneable`](https://github.com/moiristo/deep_cloneable) gem. Refer to the `deep_cloneable` documentation to get an idea of how far you can go with this. Please note: `belongs_to` associations aren't supported as these should be drafted separately.
 - `:ignore_attributes` an array of attribute names which should _not_ be duplicated. Timestamps and STI `type` columns are excluded by default. Don't include association names here.
+- `:allow_update_with_drafts` (`false`) whether to allow an instance to be updated if it has draft instances
+- `:destroy_drafts_on_publish` (`true`) whether to destroy all other drafts for an instance when publishing a draft
+
+
+### Callbacks
+
+Two extra callbacks are made available for you to wrap bespoke behaviour around the draft lifecycle:
+
+- `save_as_draft`
+- `publish_draft`
+
+You can call `set_callback` with `:before`, `:after` or `:around` as normal.
 
 
 ### Using with CarrierWave
@@ -116,13 +128,17 @@ This will result in uploads for drafts being stored in the same location as the 
 Conscript also overrides CarrierWave's `#destroy` callbacks to ensure that no other instance is using the same file before deleting it from the filesystem. Otherwise this can happen when you delete a draft with the same file as the original instance.
 
 
-### Limitations
+### Gotchas
 
-For reasons of sanity:
+If saving drafts of models with `has_many` associations, the associated model should define a reciprocal `belongs_to` relationship (as normal). However, if it also has a presence validation e.g. `validates parent_model_name, presence: true` then you will encounter a limitation of ActiveRecord's default scopes. To avoid this when saving drafts with associations, wrap your save code with a `Model.unscoped` block, e.g:
 
-- You cannot make changes to an instance if it has drafts, this is because it would be difficult to propogate those changes down or provide visibility of the changes.
-- When you publish a draft, any other drafts for the same `draft_parent` are also destroyed.
+    Article.unscoped { draft = article.save_as_draft! }
 
+Or if updating an existing draft:
+
+    Article.unscoped { draft.save! }
+
+Otherwise you'll encounter a validation error.
 
 ## Contributing
 

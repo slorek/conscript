@@ -31,10 +31,46 @@ describe Conscript::ActiveRecord do
       Widget.register_for_draft
     end
 
-    it "accepts options and merges them with defaults" do
-      Widget.register_for_draft(associations: :owners, ignore_attributes: :custom_attribute)
-      Widget.conscript_options[:associations].should == [:owners]
-      Widget.conscript_options[:ignore_attributes].should == ["id", "type", "created_at", "updated_at", "draft_parent_id", "is_draft", "custom_attribute"]
+    describe "options" do
+      it "accepts options and merges them with defaults" do
+        Widget.register_for_draft(associations: :owners, ignore_attributes: :custom_attribute)
+        Widget.conscript_options[:associations].should == [:owners]
+        Widget.conscript_options[:ignore_attributes].should == ["id", "type", "created_at", "updated_at", "draft_parent_id", "is_draft", "custom_attribute"]
+      end
+
+      describe ":allow_update_with_drafts" do
+        context "when true" do
+          it "does not register #check_no_drafts_exist as a callback" do
+            Widget.should_not_receive(:before_save)
+            Widget.register_for_draft(allow_update_with_drafts: true)
+          end
+        end
+
+        context "when false" do
+          it "registers #check_no_drafts_exist as a callback on before_save" do
+            Widget.should_receive(:before_save).once.with(:check_no_drafts_exist)
+            Widget.register_for_draft(allow_update_with_drafts: false)
+          end
+        end
+      end
+
+      describe ":destroy_drafts_on_publish" do
+        context "when true" do
+          it "registers #destroy_all_drafts as a before callback on publish_draft" do
+            Widget.register_for_draft(destroy_drafts_on_publish: true)
+            callback = Widget._publish_draft_callbacks.first
+            callback.filter.should == :destroy_all_drafts
+            callback.kind.should == :before
+          end
+        end
+
+        context "when false" do
+          it "does not register #destroy_all_drafts as a callback" do
+            Widget.register_for_draft(destroy_drafts_on_publish: false)
+            Widget._publish_draft_callbacks.should be_empty
+          end
+        end
+      end
     end
 
     describe "CarrierWave compatibility" do
@@ -94,6 +130,17 @@ describe Conscript::ActiveRecord do
       
       it "returns false" do
         @subject.send(:check_no_drafts_exist).should == false
+      end
+    end
+  end
+
+  describe "#destroy_all_drafts" do
+    context "with a draft_parent" do
+      it "destroys all drafts" do
+        @original = Widget.create
+        @draft = @original.save_as_draft!
+        @original.stub_chain(:drafts, :destroy_all).and_return('test')
+        @draft.send(:destroy_all_drafts).should == 'test'
       end
     end
   end
@@ -270,13 +317,6 @@ describe Conscript::ActiveRecord do
           -> { @duplicate.reload }.should raise_error(ActiveRecord::RecordNotFound)
         end
 
-        it "destroys the parent's other drafts" do
-          3.times { @original.save_as_draft! }
-          @original.drafts.count.should == 4
-          @duplicate.publish_draft
-          @original.drafts.count.should == 0
-        end
-
         context "where attributes were excluded in register_for_draft" do
           before { Widget.register_for_draft ignore_attributes: :name }
 
@@ -347,6 +387,36 @@ describe Conscript::ActiveRecord do
         it "returns draft_parent#to_param" do
           @duplicate.uploader_store_param.should == @original.to_param
         end
+      end
+    end
+  end
+
+  describe "callbacks" do
+    describe "publish_draft" do
+      it "is defined" do
+        Widget.register_for_draft
+        Widget._publish_draft_callbacks.should_not == nil
+      end
+
+      it "can be set" do
+        Widget.any_instance.should_receive(:test_callback).once
+        Widget.register_for_draft
+        Widget.set_callback :publish_draft, :before, :test_callback
+        Widget.create(is_draft: true).publish_draft
+      end
+    end
+
+    describe "save_as_draft" do
+      it "is defined" do
+        Widget.register_for_draft
+        Widget._save_as_draft_callbacks.should_not == nil
+      end
+
+      it "can be set" do
+        Widget.any_instance.should_receive(:test_callback).once
+        Widget.register_for_draft
+        Widget.set_callback :save_as_draft, :before, :test_callback
+        Widget.new.save_as_draft!
       end
     end
   end
