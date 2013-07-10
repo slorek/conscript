@@ -130,11 +130,7 @@ Conscript also overrides CarrierWave's `#destroy` callbacks to ensure that no ot
 
 ### Gotchas
 
-If saving drafts of models with `has_many` associations, the associated model should define a reciprocal `belongs_to` relationship (as normal). However, if it also has a presence validation e.g. `validates parent_model_name, presence: true` then you will encounter a limitation of ActiveRecord's default scopes. To avoid this when saving drafts with associations, wrap your save code with a `Model.unscoped` block, e.g:
-
-    Article.unscoped { draft = article.save_as_draft! }
-
-Or if updating an existing draft:
+If creating drafts of models with `has_many` associations, the associated model should define a reciprocal `belongs_to` relationship (as normal). However, if it also has a presence validation e.g. `validates parent_model_name, presence: true` then when you subsequently update an existing draft instance, you will encounter a limitation of ActiveRecord's default scopes. To avoid this when subsequently updating drafts with associations, wrap your save code with a `Model.unscoped` block, e.g:
 
     Article.unscoped { draft.save! }
 
