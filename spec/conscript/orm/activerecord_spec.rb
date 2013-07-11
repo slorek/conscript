@@ -235,7 +235,7 @@ describe Conscript::ActiveRecord do
       context "and has associations" do
         before do
           @subject.save!
-          @subject.thingies.create(name: 'Thingy')
+          @subject.thingies.create(name: 'Thingy', file: 'test.jpg')
         end
 
         context "and the association is not specified in register_for_draft" do
@@ -250,16 +250,25 @@ describe Conscript::ActiveRecord do
         end
 
         context "and the association is specified in register_for_draft" do
-          before do
+          it "duplicates the associated records" do
             Widget.register_for_draft associations: :thingies
             @duplicate = @subject.save_as_draft!
-          end
 
-          it "duplicates the associated records" do
             @subject.thingies.count.should == 1
             @duplicate.thingies.count.should == 1
             @duplicate.thingies.first.name.should == @subject.thingies.first.name
             @duplicate.thingies.first.id.should_not == @subject.thingies.first.id
+          end
+
+          it "copies the uploader attributes using the setter" do
+            Thingy.cattr_accessor :uploaders do
+              {file: nil}
+            end
+
+            Widget.register_for_draft associations: :thingies
+
+            Thingy.any_instance.should_receive(:file=)
+            @duplicate = @subject.save_as_draft!
           end
         end
       end

@@ -45,7 +45,12 @@ module Conscript
         def save_as_draft!
           run_callbacks :save_as_draft do
             raise Conscript::Exception::AlreadyDraft if is_draft?
-            draft = new_record? ? self : dup(include: self.class.conscript_options[:associations])
+            draft = new_record? ? self : dup(include: self.class.conscript_options[:associations]) do |original, dup|
+              # Workaround for CarrierWave uploaders on associated records. Copy the uploaded files.
+              if dup.class.respond_to? :uploaders
+                dup.class.uploaders.keys.each {|uploader| dup.send(uploader.to_s + "=", original.send(uploader)) }
+              end
+            end
             draft.is_draft = true
             draft.draft_parent = self unless new_record?
             self.class.base_class.unscoped { draft.save! }

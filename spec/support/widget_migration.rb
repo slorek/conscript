@@ -11,6 +11,7 @@ class WidgetMigration < ActiveRecord::Migration
     create_table :thingies, :force => true do |t|
       t.references :widget
       t.string :name
+      t.string :file
       t.timestamps
     end
   end
