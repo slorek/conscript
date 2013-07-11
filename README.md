@@ -1,6 +1,6 @@
 # Conscript
 
-Provides ActiveRecord models with a `drafts` scope, and the functionality to create draft instances and publish them.
+Provides ActiveRecord models with `drafts` and `published` scopes, and the functionality to create draft instances and publish them.
 
 Existing instances may have one or more draft versions which are initially created by duplication, including any required associations. A draft may then be published, overwriting the original instance.
 
@@ -46,13 +46,16 @@ To use the drafts functionality, call `register_for_draft` in your ActiveRecord 
       register_for_draft
     end
 
-A `default_scope` is then set to exclude all draft instances from finders. You may use the `drafts` scope to access them:
+This registers `published` and `drafts` scopes on the model. You may use these scopes as with any other scope:
+
+    Article.published
+
+Or:
 
     Article.drafts
 
-If you need to access drafts and original instances together, use `unscoped` as you would any other `default_scope`:
+You'll therefore need to modify any existing code to use the `published` scope where you don't want to show drafts.
 
-    Article.unscoped.all
 
 ### Instance methods
 
@@ -126,15 +129,6 @@ Then, in your uploaders where `store_dir` is defined, if you are organising file
 This will result in uploads for drafts being stored in the same location as the original instance. This is because Conscript does not want to have to worry about moving files when publishing an instance.
 
 Conscript also overrides CarrierWave's `#destroy` callbacks to ensure that no other instance is using the same file before deleting it from the filesystem. Otherwise this can happen when you delete a draft with the same file as the original instance.
-
-
-### Gotchas
-
-If creating drafts of models with `has_many` associations, the associated model should define a reciprocal `belongs_to` relationship (as normal). However, if it also has a presence validation e.g. `validates parent_model_name, presence: true` then when you subsequently update an existing draft instance, you will encounter a limitation of ActiveRecord's default scopes. To avoid this when subsequently updating drafts with associations, wrap your save code with a `Model.unscoped` block, e.g:
-
-    Article.unscoped { draft.save! }
-
-Otherwise you'll encounter a validation error.
 
 ## Contributing
 

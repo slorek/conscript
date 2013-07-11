@@ -21,8 +21,6 @@ module Conscript
       self.conscript_options[:ignore_attributes].map!(&:to_s)
       self.conscript_options.update options.slice(:allow_update_with_drafts, :destroy_drafts_on_publish)
 
-      default_scope { where(is_draft: false) }
-
       belongs_to :draft_parent, class_name: self
       has_many :drafts, conditions: {is_draft: true}, class_name: self, foreign_key: :draft_parent_id, dependent: :destroy, inverse_of: :draft_parent
 
@@ -38,6 +36,10 @@ module Conscript
       end
 
       class_eval <<-RUBY
+        def self.published
+          where(is_draft: false)
+        end
+
         def self.drafts
           where(is_draft: true)
         end
@@ -53,7 +55,7 @@ module Conscript
             end
             draft.is_draft = true
             draft.draft_parent = self unless new_record?
-            self.class.base_class.unscoped { draft.save! }
+            draft.save!
             draft
           end
         end

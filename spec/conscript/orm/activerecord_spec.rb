@@ -11,11 +11,6 @@ describe Conscript::ActiveRecord do
       Widget.respond_to?(:register_for_draft).should == true
     end
 
-    it "creates the default scope" do
-      Widget.should_receive(:default_scope).once
-      Widget.register_for_draft
-    end
-
     it "creates a belongs_to association" do
       Widget.should_receive(:belongs_to).once.with(:draft_parent, kind_of(Hash))
       Widget.register_for_draft
@@ -97,6 +92,14 @@ describe Conscript::ActiveRecord do
           Widget.register_for_draft
         end
       end
+    end
+  end
+
+  describe "#published" do
+    it "limits results to published" do
+      Widget.register_for_draft
+      Widget.should_receive(:where).once.with(is_draft: false)
+      Widget.published
     end
   end
 
