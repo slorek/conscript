@@ -55,7 +55,7 @@ describe Conscript::ActiveRecord do
             Widget.register_for_draft(destroy_drafts_on_publish: true)
             callback = Widget._publish_draft_callbacks.first
             callback.filter.should == :destroy_all_drafts
-            callback.kind.should == :before
+            callback.kind.should == :after
           end
         end
 
@@ -126,6 +126,7 @@ describe Conscript::ActiveRecord do
         @subject.send(:check_no_drafts_exist).should == true
       end
     end
+
     context "when drafts exist" do
       before do
         @subject.stub_chain(:drafts, :count).and_return(1)
@@ -133,6 +134,12 @@ describe Conscript::ActiveRecord do
       
       it "returns false" do
         @subject.send(:check_no_drafts_exist).should == false
+      end
+
+      it "adds an error" do
+        @subject.errors[:base].should be_empty
+        @subject.send(:check_no_drafts_exist)
+        @subject.errors[:base].should_not be_empty
       end
     end
   end

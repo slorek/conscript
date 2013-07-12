@@ -27,7 +27,7 @@ module Conscript
       define_callbacks :publish_draft, :save_as_draft
 
       before_save :check_no_drafts_exist if (self.conscript_options[:allow_update_with_drafts] == false)
-      set_callback :publish_draft, :before, :destroy_all_drafts if (self.conscript_options[:destroy_drafts_on_publish] == true)
+      set_callback :publish_draft, :after, :destroy_all_drafts if (self.conscript_options[:destroy_drafts_on_publish] == true)
 
       # Prevent deleting CarrierWave uploads which may be used by other instances. Uploaders must be mounted beforehand.
       if self.respond_to? :uploaders
@@ -70,10 +70,16 @@ module Conscript
               self.class.conscript_options[:associations].each do |association|
                 case reflections[association].macro
                   when :has_many
-                    draft_parent.send(association.to_s + "=", self.send(association).collect {|child| child.dup })
+                    draft_parent.send(association.to_s + "=", self.send(association).collect {|child| child.dup do |original, dup|
+                      # Workaround for CarrierWave uploaders on associated records. Copy the uploaded files.
+                      if dup.class.respond_to? :uploaders
+                        dup.class.uploaders.keys.each {|uploader| dup.send(uploader.to_s + "=", original.send(uploader)) }
+                      end
+                    end })
                 end
               end
 
+              self.destroy
               draft_parent.save!
             end
             draft_parent
@@ -86,6 +92,7 @@ module Conscript
 
         private
           def check_no_drafts_exist
+            errors[:base] << "Cannot save record while drafts exist"
             drafts.count == 0
           end
 
@@ -98,7 +105,8 @@ module Conscript
           def clean_uploaded_files_for_draft!
             self.class.uploaders.keys.each do |attribute|
               filename = attributes[attribute.to_s]
-              self.send("remove_" + attribute.to_s + "!") if !draft_parent_id or draft_parent.drafts.where(attribute => filename).count == 0
+              cols = self.class.arel_table
+              self.send("remove_" + attribute.to_s + "!") if !draft_parent_id or self.class.where(cols[:id].eq(draft_parent_id).or(cols[:draft_parent_id].eq(draft_parent_id))).where(attribute => filename).count == 0
             end
           end
 
