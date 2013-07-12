@@ -64,25 +64,28 @@ module Conscript
           run_callbacks :publish_draft do
             raise Conscript::Exception::NotADraft unless is_draft?
             return self.update_attribute(:is_draft, false) if !draft_parent_id
+            parent = self.draft_parent
             ::ActiveRecord::Base.transaction do
-              draft_parent.assign_attributes attributes_to_publish, without_protection: true
+              parent.assign_attributes attributes_to_publish, without_protection: true
 
               self.class.conscript_options[:associations].each do |association|
                 case reflections[association].macro
                   when :has_many
-                    draft_parent.send(association.to_s + "=", self.send(association).collect {|child| child.dup do |original, dup|
-                      # Workaround for CarrierWave uploaders on associated records. Copy the uploaded files.
-                      if dup.class.respond_to? :uploaders
-                        dup.class.uploaders.keys.each {|uploader| dup.send(uploader.to_s + "=", original.send(uploader)) }
+                    parent.send(association.to_s + "=", self.send(association).collect do |child|
+                      child.dup do |original, dup|
+                        # Workaround for CarrierWave uploaders on associated records. Copy the uploaded files.
+                        if dup.class.respond_to? :uploaders
+                          dup.class.uploaders.keys.each {|uploader| dup.send(uploader.to_s + "=", original.send(uploader)) }
+                        end
                       end
-                    end })
+                    end)
                 end
               end
 
               self.destroy
-              draft_parent.save!
+              parent.save!
             end
-            draft_parent
+            parent
           end
         end
 

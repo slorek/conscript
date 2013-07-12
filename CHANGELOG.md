@@ -1,8 +1,12 @@
+## v0.2.2
+
+* Fixed regression bug where attributes were sometimes not being copied over to the draft parent.
+
 ## v0.2.1
 
 * Fixed bug where associated `has_many` records with CarrierWave uploads were not duplicated correctly - uploaded files are now copied
 * Fixed bug where destroying a draft would remove an uploaded file from its draft parent if they shared the same file.
-* Fixed bug where drafts were destroyed before publish_Draft was successful
+* Fixed bug where drafts were destroyed before `publish_draft` was successful
 * Added an ActiveRecord error where `save` fails if drafts exist for an instance
 
 ## v0.2.0
