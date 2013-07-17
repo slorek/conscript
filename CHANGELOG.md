@@ -1,3 +1,8 @@
+## v0.2.3
+
+* Fixed a failing scenario where associated objects modified the parent object before the parent was destroyed
+* Fixed a failing scenario where inverse relationship was not detected under certain conditions
+
 ## v0.2.2
 
 * Fixed regression bug where attributes were sometimes not being copied over to the draft parent.
