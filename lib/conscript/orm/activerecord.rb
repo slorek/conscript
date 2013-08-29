@@ -63,7 +63,10 @@ module Conscript
         def publish_draft
           run_callbacks :publish_draft do
             raise Conscript::Exception::NotADraft unless is_draft?
-            return self.update_attribute(:is_draft, false) if !draft_parent_id
+            if !draft_parent_id
+              self.update_attribute(:is_draft, false) 
+              return self
+            end
             parent = self.draft_parent
             ::ActiveRecord::Base.transaction do
               parent.assign_attributes attributes_to_publish, without_protection: true
