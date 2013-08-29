@@ -1,3 +1,7 @@
+## v0.2.4
+
+* When publishing a draft with no draft_parent, ensured the return value is the same (self) as when it does have a draft_parent.
+
 ## v0.2.3
 
 * Fixed a failing scenario where associated objects modified the parent object before the parent was destroyed
